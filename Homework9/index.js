@@ -78,7 +78,7 @@ app.post("/register", async (req, res) => {
   try {
     const { email, password } = req.body ?? {};
     if (!email || !password) {
-      return res.status(400).send("Username and password are required");
+      return res.status(400).send("email and password are required");
     }
     const customer = await Customer.findOne({ where: { email } });
     if (customer) {
@@ -86,13 +86,64 @@ app.post("/register", async (req, res) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newCustomer = await Customer.create({
+    await Customer.create({
       email,
       password: hashedPassword,
     });
     res.status(201).send("User зареган");
   } catch (error) {
     res.status(500).send("User не зареган");
+  }
+});
+
+app.get("/admin", async (req, res) => {
+  try {
+    const { email, password } = req.body ?? {};
+    if (!email || !password) {
+      return res.status(400).send("email and password are required");
+    }
+    const customer = await Customer.findOne({ where: { email } });
+    if (!customer) {
+      return res.status(401).send("email or password is invalid");
+    }
+    if (customer.role === "admin") {
+      res.status(200).send("Alles gut");
+    } else {
+      return res.status(403).send("Error");
+    }
+  } catch (error) {
+    res.status(500).send("Server error");
+  }
+});
+
+app.post("/change-email", async (req, res) => {
+  try {
+    const { email, password, newEmail } = req.body ?? {};
+    if (!email || !password || !newEmail) {
+      return res.status(400).send("email and password and newEmail are required");
+    }
+    const customer = await Customer.findOne({ where: { email } });
+    if (!customer) {
+      return res.status(401).send("email or password is invalid");
+    }
+    const isPasswordValid = await bcrypt.compare(password, customer.password);
+    if (!isPasswordValid) {
+      return res.status(401).send("email or password is invalid");
+    }
+    const isNewEmailValid = await Customer.findOne({
+      where: { email: newEmail },
+    });
+    if (isNewEmailValid) {
+      return res.status(409).send("Error");
+    }
+    if (newEmail === email) {
+      return res.send("может придумаешь что-то??");
+    }
+    customer.email = newEmail;
+    await customer.save();
+    res.send("у тебя новый email");
+  } catch (error) {
+    res.status(500).send("Server error");
   }
 });
 
